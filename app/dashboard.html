@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Digitación · Transporte Escolar</title>
+  <link rel="stylesheet" href="../assets/css/style.css"/>
+  <script defer src="../assets/js/common.js"></script>
+  <script defer src="../assets/js/auth.js"></script>
+  <script defer src="../assets/js/api.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <div class="brand">
+        <div class="logo">🧑‍💻</div>
+        <div>
+          <h1>Digitación</h1>
+          <small>RUT → ficha → asignar bus (con cupos)</small>
+        </div>
+        <div class="spacer"></div>
+        <div class="toolbar">
+          <a class="btn" href="../index.html">🏠</a>
+          <a class="btn" href="../pages/dashboard_bus.html">🚌 Bus</a>
+          <a class="btn" href="../pages/dashboard_curso.html">🎓 Curso</a>
+          <button class="btn" onclick="TE.speakAll()">🗣️</button>
+          <button class="btn" onclick="TE.toggleTheme()">🌓</button>
+          <button class="btn" onclick="TE.bumpFont(0.05)">A+</button>
+          <button class="btn" onclick="TE.bumpFont(-0.05)">A−</button>
+          <button class="btn danger" id="logout">Salir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>🔎 Buscar por RUT</h2>
+        <p>Escribe el RUT del alumno y presiona Enter o Buscar.</p>
+        <div class="row">
+          <input class="input" id="rut" placeholder="12.345.678-9" style="flex:1; min-width:260px"/>
+          <button class="btn primary" id="btnBuscar">Buscar</button>
+          <button class="btn" id="btnRef">🔄 Refrescar buses</button>
+        </div>
+        <div style="height:12px"></div>
+
+        <div id="studentCard" class="notice" style="display:none"></div>
+
+        <div style="height:12px"></div>
+
+        <div class="row">
+          <select id="busSel" style="flex:1; min-width:300px"></select>
+          <button class="btn ok" id="btnAsignar" disabled>✅ Asignar</button>
+        </div>
+        <div style="height:10px"></div>
+        <div class="small" id="busInfo">Selecciona un bus para ver cupos.</div>
+      </div>
+
+      <div class="card">
+        <h2>🧾 Últimas acciones</h2>
+        <p>Registro local (esta PC). El consolidado está en Sync.</p>
+        <table class="table" id="tblLog">
+          <thead><tr><th>Hora</th><th>RUT</th><th>Resultado</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div style="height:10px"></div>
+        <div class="notice">
+          Si un bus está lleno, el sistema lo registra como <b>EN_ESPERA</b> y el alumno queda en la hoja “En_espera”.
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Digitador: <span id="who"></span> · © NeoTech EduLab – Educación Inmersiva · LPSN · 2026</div>
+  </div>
+
+<script>
+let session=null;
+let currentStudent=null;
+let buses=[];
+
+function logLine(rut, result){
+  const tb = document.querySelector('#tblLog tbody');
+  const tr = document.createElement('tr');
+  const t = new Date().toLocaleTimeString();
+  tr.innerHTML = `<td>${t}</td><td>${rut}</td><td>${result}</td>`;
+  tb.prepend(tr);
+}
+
+function renderStudent(s){
+  const el = document.getElementById('studentCard');
+  el.style.display='block';
+  const badge = s.asignacion?.status === 'ASIGNADO' ? '<span class="badge ok">ASIGNADO</span>'
+              : s.asignacion?.status === 'EN_ESPERA' ? '<span class="badge warn">EN_ESPERA</span>'
+              : '<span class="badge">SIN ASIGNAR</span>';
+  el.innerHTML = `
+    <div class="row">
+      <div style="font-size:18px"><b>${s.nombre || '(Sin nombre)'}</b></div>
+      <div class="spacer"></div>
+      ${badge}
+    </div>
+    <div class="small">
+      <b>RUT:</b> ${s.rut} · <b>Curso:</b> ${s.curso||'-'} · <b>Correo:</b> ${s.email||'-'}
+      <br/><b>Domicilio:</b> ${s.domicilio||'-'} · <b>Comuna:</b> ${s.comuna||'-'}
+    </div>
+    ${s.asignacion?.busId ? `<div style="margin-top:8px" class="small"><b>Actual:</b> Bus ${s.asignacion.busId} · ${s.asignacion.route||''}</div>`:''}
+  `;
+}
+
+function fillBuses(){
+  const sel = document.getElementById('busSel');
+  sel.innerHTML = '';
+  const opt0 = document.createElement('option');
+  opt0.value='';
+  opt0.textContent='— Seleccionar bus —';
+  sel.appendChild(opt0);
+  buses.forEach(b=>{
+    const o = document.createElement('option');
+    o.value = b.id;
+    const cap = b.capacity ? ` · cap ${b.capacity}` : '';
+    o.textContent = `🚌 ${b.id} · ${b.name||''}${cap}`;
+    sel.appendChild(o);
+  });
+}
+
+async function refreshBuses(){
+  const data = await TE.sync.callApi('listBusesWithLoad', {});
+  buses = data.buses;
+  fillBuses();
+  TE.toast('Buses actualizados.','ok');
+}
+
+function showBusInfo(busId){
+  const b = buses.find(x=>x.id===busId);
+  if(!b){ busInfo.textContent='Selecciona un bus para ver cupos.'; return; }
+  const cap = b.capacity || 0;
+  const used = b.assigned || 0;
+  const left = Math.max(0, cap - used);
+  busInfo.innerHTML = `
+    <span class="badge">Recorrido</span> ${b.route||'-'}<br/>
+    <span class="badge ${left>0?'ok':'warn'}">Cupos</span> ${used}/${cap} · <b>Disponibles:</b> ${left}
+  `;
+}
+
+async function buscar(){
+  try{
+    const r = TE.sync.normRut(rut.value);
+    if(!r) throw new Error('Ingresa un RUT.');
+    rut.value = r;
+    const s = await TE.sync.callApi('getStudentByRut', { rut:r });
+    currentStudent = s;
+    renderStudent(s);
+    btnAsignar.disabled = false;
+    logLine(r, 'Alumno encontrado');
+  }catch(e){
+    currentStudent = null;
+    studentCard.style.display='none';
+    btnAsignar.disabled = true;
+    logLine(rut.value, 'No encontrado');
+    TE.toast(e.message,'err');
+  }
+}
+
+async function asignar(){
+  try{
+    if(!currentStudent) throw new Error('Primero busca un alumno.');
+    const busId = busSel.value;
+    if(!busId) throw new Error('Selecciona un bus.');
+    btnAsignar.disabled = true;
+    const resp = await TE.sync.callApi('assignBus', {
+      rut: currentStudent.rut,
+      busId,
+      digitador: session.email
+    });
+    if(resp.status === 'ASIGNADO'){
+      TE.toast(`Asignado a Bus ${busId}.`, 'ok');
+      logLine(currentStudent.rut, `ASIGNADO Bus ${busId}`);
+    }else{
+      TE.toast(`Sin cupos. Alumno quedó EN_ESPERA.`, 'warn');
+      logLine(currentStudent.rut, `EN_ESPERA Bus ${busId}`);
+    }
+    await refreshBuses();
+    // refresh student
+    const s = await TE.sync.callApi('getStudentByRut', { rut: currentStudent.rut });
+    currentStudent = s;
+    renderStudent(s);
+  }catch(e){
+    TE.toast(e.message,'err');
+  }finally{
+    btnAsignar.disabled = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async ()=>{
+  session = TE.auth.requireRole(['admin','digitador']);
+  if(!session) return;
+  who.textContent = session.email;
+  logout.onclick = ()=>{ TE.auth.logout(); location.href='login.html'; };
+
+  btnBuscar.onclick = buscar;
+  rut.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') buscar(); });
+
+  btnRef.onclick = async ()=>{
+    try{ await refreshBuses(); }
+    catch(e){ TE.toast(e.message,'err'); }
+  };
+
+  busSel.onchange = ()=> showBusInfo(busSel.value);
+
+  btnAsignar.onclick = asignar;
+
+  try{ await refreshBuses(); }
+  catch(e){ TE.toast('Configura Sync en ⚙️ primero.', 'warn'); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>LPSN · Transporte Escolar 2026</title>
+  <link rel="stylesheet" href="assets/css/style.css"/>
+  <script defer src="assets/js/common.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <div class="brand">
+        <div class="logo">🚌</div>
+        <div>
+          <h1>LPSN · Transporte Escolar 2026</h1>
+          <small>Asignación de buses por RUT · Sync centralizado (Google Sheets)</small>
+        </div>
+        <div class="spacer"></div>
+        <div class="toolbar">
+          <button class="btn" onclick="TE.speakAll()">🗣️</button>
+          <button class="btn" onclick="TE.toggleTheme()">🌓</button>
+          <button class="btn" onclick="TE.bumpFont(0.05)">A+</button>
+          <button class="btn" onclick="TE.bumpFont(-0.05)">A−</button>
+          <a class="btn primary" href="app/login.html">🔐 Ingresar</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="notice">
+      <b>Camino oficial:</b> la nómina se carga <b>una sola vez</b> por Administrador. Los digitadores trabajan solo con <b>RUT → asignar bus</b>, con control automático de cupos y lista de espera.
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="grid cols-3">
+      <div class="card">
+        <h2>👩‍💻 Digitación rápida</h2>
+        <p>Ingresas RUT, el sistema trae la ficha del estudiante desde la base central y guardas bus + recorrido.</p>
+        <div class="row">
+          <span class="badge ok">RUT → ficha automática</span>
+          <span class="badge warn">cupo controlado</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>📊 Dashboards</h2>
+        <p>Vistas consolidadas por <b>Bus</b> y por <b>Curso</b> (con exportación).</p>
+        <div class="row">
+          <span class="badge">BUS_<i>ID</i></span>
+          <span class="badge">Asignaciones</span>
+          <span class="badge">En_espera</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>🔄 Sync oficial</h2>
+        <p>Multi-PC real usando Google Sheets + Apps Script. Evita “bases locales” separadas por digitador.</p>
+        <div class="row">
+          <a class="btn primary" href="app/settings.html">⚙️ Configurar Sync</a>
+          <a class="btn" href="README.html">📘 Guía</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      © NeoTech EduLab – Educación Inmersiva · Uso interno LPSN · 2026
+    </div>
+  </div>
+</body>
+</html>

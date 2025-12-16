@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dashboard por Bus · Transporte Escolar</title>
+  <link rel="stylesheet" href="../assets/css/style.css"/>
+  <script defer src="../assets/js/common.js"></script>
+  <script defer src="../assets/js/auth.js"></script>
+  <script defer src="../assets/js/api.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <div class="brand">
+        <div class="logo">🚌</div>
+        <div>
+          <h1>Dashboard por Bus</h1>
+          <small>Asignados, cupos y lista de espera</small>
+        </div>
+        <div class="spacer"></div>
+        <div class="toolbar">
+          <a class="btn" href="../index.html">🏠</a>
+          <a class="btn" href="../app/dashboard.html">🧑‍💻</a>
+          <a class="btn" href="../app/admin.html">🛠️</a>
+          <button class="btn" onclick="TE.speakAll()">🗣️</button>
+          <button class="btn" onclick="TE.toggleTheme()">🌓</button>
+          <button class="btn" onclick="TE.bumpFont(0.05)">A+</button>
+          <button class="btn" onclick="TE.bumpFont(-0.05)">A−</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="row">
+        <select id="busSel" style="flex:1; min-width:320px"></select>
+        <button class="btn primary" id="btnLoad">🔎 Cargar</button>
+        <button class="btn" id="btnCsv">📤 Export CSV (bus)</button>
+      </div>
+      <div style="height:12px"></div>
+      <div id="info" class="notice">Selecciona un bus.</div>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>✅ Asignados</h2>
+        <table class="table" id="tblA">
+          <thead><tr><th>RUT</th><th>Alumno</th><th>Curso</th><th>Correo</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>⏳ En espera (para este bus)</h2>
+        <table class="table" id="tblW">
+          <thead><tr><th>RUT</th><th>Alumno</th><th>Curso</th><th>Motivo</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer">© NeoTech EduLab – Educación Inmersiva · LPSN · 2026</div>
+  </div>
+
+<script>
+let buses=[];
+let lastData=null;
+
+function fill(buses){
+  const sel = document.getElementById('busSel');
+  sel.innerHTML = '<option value="">— Seleccionar bus —</option>';
+  buses.forEach(b=>{
+    const o = document.createElement('option');
+    o.value = b.id;
+    o.textContent = `🚌 ${b.id} · ${b.name||''}`;
+    sel.appendChild(o);
+  });
+}
+
+function render(d){
+  lastData = d;
+  const b = d.bus;
+  const cap = b.capacity||0, used = d.asignados.length;
+  const left = Math.max(0, cap-used);
+  info.innerHTML = `
+    <div class="row">
+      <div><b>Bus:</b> ${b.id} · ${b.name||''}</div>
+      <div class="spacer"></div>
+      <span class="badge ${left>0?'ok':'warn'}">Cupos ${used}/${cap} · disp ${left}</span>
+    </div>
+    <div class="small" style="margin-top:6px"><b>Recorrido:</b> ${b.route||'-'}</div>
+  `;
+  const ta = document.querySelector('#tblA tbody');
+  const tw = document.querySelector('#tblW tbody');
+  ta.innerHTML=''; tw.innerHTML='';
+  d.asignados.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.rut}</td><td>${r.nombre||''}</td><td>${r.curso||''}</td><td>${r.email||''}</td>`;
+    ta.appendChild(tr);
+  });
+  d.espera.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.rut}</td><td>${r.nombre||''}</td><td>${r.curso||''}</td><td>${r.motivo||'SIN_CUPO'}</td>`;
+    tw.appendChild(tr);
+  });
+}
+
+function toCsv(rows, cols){
+  const esc = (v)=>(''+(v??'')).replace(/"/g,'""');
+  const header = cols.map(c=>`"${esc(c)}"`).join(',');
+  const body = rows.map(r=>cols.map(c=>`"${esc(r[c])}"`).join(',')).join('\n');
+  return header+'\n'+body;
+}
+
+document.addEventListener('DOMContentLoaded', async ()=>{
+  TE.auth.requireRole(['admin','digitador']);
+  try{
+    const data = await TE.sync.callApi('listBuses', {});
+    buses = data.buses;
+    fill(buses);
+  }catch(e){
+    TE.toast('Configura Sync en ⚙️ primero.','warn');
+  }
+
+  btnLoad.onclick = async ()=>{
+    try{
+      const id = busSel.value;
+      if(!id) throw new Error('Selecciona un bus.');
+      const d = await TE.sync.callApi('getBusDashboard', { busId:id });
+      render(d);
+    }catch(e){ TE.toast(e.message,'err'); }
+  };
+
+  btnCsv.onclick = ()=>{
+    if(!lastData){ TE.toast('Primero carga un bus.','warn'); return; }
+    const rows = lastData.asignados.map(r=>({rut:r.rut, nombre:r.nombre, curso:r.curso, email:r.email, bus:lastData.bus.id, recorrido:lastData.bus.route||''}));
+    const csv = toCsv(rows, ['rut','nombre','curso','email','bus','recorrido']);
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `bus_${lastData.bus.id}_asignados.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+});
+</script>
+</body>
+</html>

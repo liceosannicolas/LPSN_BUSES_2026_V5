@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Guía · Transporte Escolar</title>
+  <link rel="stylesheet" href="assets/css/style.css"/>
+  <script defer src="assets/js/common.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <div class="brand">
+        <div class="logo">📘</div>
+        <div>
+          <h1>Guía rápida</h1>
+          <small>LPSN Transporte Escolar 2026 · V4 Sync Oficial</small>
+        </div>
+        <div class="spacer"></div>
+        <div class="toolbar">
+          <a class="btn" href="index.html">🏠</a>
+          <a class="btn" href="app/login.html">🔐</a>
+          <a class="btn" href="app/settings.html">⚙️</a>
+          <button class="btn" onclick="TE.speakAll()">🗣️</button>
+          <button class="btn" onclick="TE.toggleTheme()">🌓</button>
+          <button class="btn" onclick="TE.bumpFont(0.05)">A+</button>
+          <button class="btn" onclick="TE.bumpFont(-0.05)">A−</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>1) Crear Sync (Google Sheets + Apps Script)</h2>
+        <ol class="small">
+          <li>Crea un <b>Google Sheet</b> (vacío).</li>
+          <li>Extensiones → <b>Apps Script</b>.</li>
+          <li>Copia el archivo <code>backend/AppsScript.gs</code> dentro del proyecto.</li>
+          <li>En <b>Servicios avanzados</b>, habilita <b>Drive API</b> (necesario para importar Excel desde Drive).</li>
+          <li>En <b>Script Properties</b>, agrega <code>API_KEY</code> (tu clave).</li>
+          <li>Deploy → <b>Web app</b>:
+            <ul>
+              <li>Execute as: <b>Me</b></li>
+              <li>Who has access: <b>Anyone with the link</b></li>
+            </ul>
+          </li>
+          <li>Copia la URL que termina en <code>/exec</code>.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>2) Configurar PCs</h2>
+        <p class="small"><b>En cada PC</b> (admin y digitadores):</p>
+        <ol class="small">
+          <li>Abre <code>app/settings.html</code></li>
+          <li>Pega <b>URL</b> del Web App y <b>API Key</b></li>
+          <li>Probar conexión (📡) → debe decir OK</li>
+        </ol>
+
+        <h3 style="margin-top:12px">3) Carga única de nómina (solo Admin)</h3>
+        <ol class="small">
+          <li>Sube el Excel al <b>Google Drive</b> del Admin.</li>
+          <li>Copia el <b>link</b> del archivo.</li>
+          <li>Entra a <code>app/admin.html</code> → pega link/ID → <b>Importar</b>.</li>
+        </ol>
+        <div class="notice">
+          Tras esto, los digitadores no vuelven a cargar Excel: trabajan por RUT sobre la base central.
+        </div>
+      </div>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>4) Operación digitadores</h2>
+        <ol class="small">
+          <li>Ingresar a <code>app/login.html</code> (correo autorizado + clave <b>Buses2026</b>).</li>
+          <li>Ir a <code>app/dashboard.html</code>.</li>
+          <li>Buscar por <b>RUT</b> → el sistema trae la ficha.</li>
+          <li>Seleccionar <b>Bus</b> → asignar.</li>
+          <li>Si está lleno → queda <b>EN_ESPERA</b> automáticamente.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>5) Dashboards</h2>
+        <p class="small">
+          <b>🚌 Dashboard por Bus</b>: cupos, listado de asignados y en espera, export CSV.<br/>
+          <b>🎓 Dashboard por Curso</b>: listado por curso con bus/recorrido/estado.
+        </p>
+        <div class="row">
+          <a class="btn primary" href="pages/dashboard_bus.html">🚌 Bus</a>
+          <a class="btn primary" href="pages/dashboard_curso.html">🎓 Curso</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      © NeoTech EduLab – Educación Inmersiva · LPSN · 2026
+    </div>
+  </div>
+</body>
+</html>

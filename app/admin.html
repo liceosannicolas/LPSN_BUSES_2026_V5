@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Admin · Transporte Escolar</title>
+  <link rel="stylesheet" href="../assets/css/style.css"/>
+  <script defer src="../assets/js/common.js"></script>
+  <script defer src="../assets/js/auth.js"></script>
+  <script defer src="../assets/js/api.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <div class="brand">
+        <div class="logo">🛠️</div>
+        <div>
+          <h1>Administrador</h1>
+          <small>Carga única de nómina · Buses/Recorridos · Export global</small>
+        </div>
+        <div class="spacer"></div>
+        <div class="toolbar">
+          <a class="btn" href="../index.html">🏠</a>
+          <a class="btn" href="dashboard.html">🧑‍💻 Digitación</a>
+          <a class="btn" href="../pages/dashboard_bus.html">🚌 Dashboard Bus</a>
+          <a class="btn" href="../pages/dashboard_curso.html">🎓 Dashboard Curso</a>
+          <button class="btn" onclick="TE.speakAll()">🗣️</button>
+          <button class="btn" onclick="TE.toggleTheme()">🌓</button>
+          <button class="btn" onclick="TE.bumpFont(0.05)">A+</button>
+          <button class="btn" onclick="TE.bumpFont(-0.05)">A−</button>
+          <button class="btn danger" id="logout">Salir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="kpi">
+      <div class="pill"><b id="kStudents">—</b><span>Estudiantes en base (Estudiantes)</span></div>
+      <div class="pill"><b id="kBuses">—</b><span>Buses definidos (Buses)</span></div>
+      <div class="pill"><b id="kAssigned">—</b><span>Asignaciones activas</span></div>
+      <div class="pill"><b id="kWait">—</b><span>En espera</span></div>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>📥 Cargar nómina (una sola vez)</h2>
+        <p>Recomendado: sube el Excel a Google Drive y pega el link o ID. El servidor lo importa sin depender del navegador.</p>
+        <div class="row">
+          <input class="input" id="drive" placeholder="Pega link Drive o ID del archivo .xlsx" style="flex:1; min-width:320px"/>
+          <input class="input" id="sheetName" placeholder="Hoja (opcional, ej: formulario)" style="min-width:220px"/>
+          <button class="btn primary" id="btnImport">🚀 Importar</button>
+        </div>
+        <div style="height:10px"></div>
+        <div class="notice">
+          El import crea/actualiza la hoja <b>Estudiantes</b> con toda la nómina. Luego, los digitadores trabajan solo por RUT.
+        </div>
+        <div style="height:10px"></div>
+        <div class="row">
+          <button class="btn ok" id="btnInit">🧱 Inicializar hojas</button>
+          <button class="btn" id="btnExport">📤 Export global (CSV)</button>
+        </div>
+        <div style="height:10px"></div>
+        <div class="small">Export global genera CSV para respaldo rápido. Si quieres Excel nativo, lo dejamos como V5.</div>
+      </div>
+
+      <div class="card">
+        <h2>🚌 Buses (capacidad y recorrido)</h2>
+        <p>Define buses ahora o más adelante. El control de cupos usa <b>capacidad</b>.</p>
+        <div class="row">
+          <input class="input" id="busId" placeholder="ID (ej: 1, A, 01)" style="min-width:160px"/>
+          <input class="input" id="busName" placeholder="Nombre (ej: Bus 1)" style="min-width:220px"/>
+          <input class="input" id="cap" type="number" placeholder="Capacidad" style="min-width:150px"/>
+          <input class="input" id="route" placeholder="Recorrido (texto)" style="flex:1; min-width:280px"/>
+          <button class="btn primary" id="btnAddBus">➕ Guardar</button>
+        </div>
+        <div style="height:12px"></div>
+        <table class="table" id="tblBuses">
+          <thead><tr><th>Bus</th><th>Cap.</th><th>Recorrido</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer">Admin: <span id="who"></span> · © NeoTech EduLab – Educación Inmersiva · LPSN · 2026</div>
+  </div>
+
+<script>
+let session=null;
+
+function parseDriveId(input){
+  const s = (input||'').trim();
+  if(!s) return '';
+  // if it's a full link, try extract /d/<id> or id=
+  let m = s.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if(m) return m[1];
+  m = s.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(m) return m[1];
+  // else assume it's already an id
+  return s;
+}
+
+async function refreshStats(){
+  try{
+    const st = await TE.sync.callApi('stats', {});
+    kStudents.textContent = st.students;
+    kBuses.textContent = st.buses;
+    kAssigned.textContent = st.assigned;
+    kWait.textContent = st.waiting;
+  }catch(e){
+    TE.toast(e.message,'err');
+  }
+}
+
+async function loadBuses(){
+  const data = await TE.sync.callApi('listBuses', {});
+  const tb = document.querySelector('#tblBuses tbody');
+  tb.innerHTML = '';
+  data.buses.forEach(b=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><b>${b.id}</b> · ${b.name||''}</td>
+      <td>${b.capacity||''}</td>
+      <td>${b.route||''}</td>
+      <td><button class="btn danger" data-id="${b.id}">🗑️</button></td>
+    `;
+    tr.querySelector('button').onclick = async ()=>{
+      try{
+        await TE.sync.callApi('deleteBus', { id:b.id });
+        TE.toast('Bus eliminado.','ok');
+        await loadBuses(); await refreshStats();
+      }catch(e){ TE.toast(e.message,'err'); }
+    };
+    tb.appendChild(tr);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async ()=>{
+  session = TE.auth.requireRole(['admin']);
+  if(!session) return;
+  who.textContent = session.email;
+
+  logout.onclick = ()=>{ TE.auth.logout(); location.href='login.html'; };
+
+  btnInit.onclick = async ()=>{
+    try{
+      await TE.sync.callApi('init', {});
+      TE.toast('Hojas inicializadas.','ok');
+      await refreshStats(); await loadBuses();
+    }catch(e){ TE.toast(e.message,'err'); }
+  };
+
+  btnImport.onclick = async ()=>{
+    try{
+      const fileId = parseDriveId(drive.value);
+      if(!fileId) throw new Error('Pega link o ID del archivo Excel en Drive.');
+      btnImport.disabled = true;
+      const resp = await TE.sync.callApi('importStudentsFromDrive', { fileId, sheetName: (sheetName.value||'').trim() });
+      TE.toast(`Importación OK: ${resp.rows} estudiantes.`, 'ok');
+      await refreshStats();
+    }catch(e){
+      TE.toast(e.message,'err');
+    }finally{
+      btnImport.disabled = false;
+    }
+  };
+
+  btnAddBus.onclick = async ()=>{
+    try{
+      const id = (busId.value||'').trim();
+      if(!id) throw new Error('Falta ID del bus.');
+      const payload = {
+        id,
+        name:(busName.value||'').trim() || ('Bus '+id),
+        capacity: Number(cap.value||0) || 0,
+        route:(route.value||'').trim()
+      };
+      await TE.sync.callApi('upsertBus', payload);
+      TE.toast('Bus guardado.','ok');
+      busId.value=''; busName.value=''; cap.value=''; route.value='';
+      await loadBuses(); await refreshStats();
+    }catch(e){ TE.toast(e.message,'err'); }
+  };
+
+  btnExport.onclick = async ()=>{
+    try{
+      const data = await TE.sync.callApi('exportCsv', {});
+      const blob = new Blob([data.csv], {type:'text/csv;charset=utf-8'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = data.filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      TE.toast('Export descargado.','ok');
+    }catch(e){ TE.toast(e.message,'err'); }
+  };
+
+  await refreshStats();
+  await loadBuses();
+});
+</script>
+</body>
+</html>

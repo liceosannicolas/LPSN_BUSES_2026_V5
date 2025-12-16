@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dashboard por Curso · Transporte Escolar</title>
+  <link rel="stylesheet" href="../assets/css/style.css"/>
+  <script defer src="../assets/js/common.js"></script>
+  <script defer src="../assets/js/auth.js"></script>
+  <script defer src="../assets/js/api.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <div class="brand">
+        <div class="logo">🎓</div>
+        <div>
+          <h1>Dashboard por Curso</h1>
+          <small>Listado por curso con bus asignado</small>
+        </div>
+        <div class="spacer"></div>
+        <div class="toolbar">
+          <a class="btn" href="../index.html">🏠</a>
+          <a class="btn" href="../app/dashboard.html">🧑‍💻</a>
+          <a class="btn" href="../app/admin.html">🛠️</a>
+          <button class="btn" onclick="TE.speakAll()">🗣️</button>
+          <button class="btn" onclick="TE.toggleTheme()">🌓</button>
+          <button class="btn" onclick="TE.bumpFont(0.05)">A+</button>
+          <button class="btn" onclick="TE.bumpFont(-0.05)">A−</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="row">
+        <input class="input" id="curso" placeholder="Ej: 7° Básico / 1° Medio / 2M" style="flex:1; min-width:320px"/>
+        <button class="btn primary" id="btnLoad">🔎 Cargar</button>
+        <button class="btn" id="btnCsv">📤 Export CSV (curso)</button>
+      </div>
+      <div style="height:12px"></div>
+      <div id="info" class="notice">Escribe un curso (texto) y carga.</div>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="card">
+      <h2>📋 Resultados</h2>
+      <table class="table" id="tbl">
+        <thead><tr><th>RUT</th><th>Alumno</th><th>Correo</th><th>Bus</th><th>Recorrido</th><th>Estado</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="footer">© NeoTech EduLab – Educación Inmersiva · LPSN · 2026</div>
+  </div>
+
+<script>
+let lastRows=null;
+function toCsv(rows, cols){
+  const esc = (v)=>(''+(v??'')).replace(/"/g,'""');
+  const header = cols.map(c=>`"${esc(c)}"`).join(',');
+  const body = rows.map(r=>cols.map(c=>`"${esc(r[c])}"`).join(',')).join('\n');
+  return header+'\n'+body;
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  TE.auth.requireRole(['admin','digitador']);
+
+  btnLoad.onclick = async ()=>{
+    try{
+      const c = (curso.value||'').trim();
+      if(!c) throw new Error('Ingresa un curso.');
+      const d = await TE.sync.callApi('getCursoDashboard', { curso:c });
+      lastRows = d.rows;
+      info.innerHTML = `<b>Curso:</b> ${c} · <b>Registros:</b> ${d.rows.length}`;
+      const tb = document.querySelector('#tbl tbody');
+      tb.innerHTML='';
+      d.rows.forEach(r=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML = `<td>${r.rut}</td><td>${r.nombre||''}</td><td>${r.email||''}</td><td>${r.busId||''}</td><td>${r.route||''}</td><td>${r.status||''}</td>`;
+        tb.appendChild(tr);
+      });
+    }catch(e){ TE.toast(e.message,'err'); }
+  };
+
+  btnCsv.onclick = ()=>{
+    if(!lastRows){ TE.toast('Primero carga un curso.','warn'); return; }
+    const csv = toCsv(lastRows, ['rut','nombre','email','curso','busId','route','status']);
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `curso_${(curso.value||'curso').replace(/\s+/g,'_')}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+});
+</script>
+</body>
+</html>

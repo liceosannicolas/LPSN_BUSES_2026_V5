@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Configurar Sync · Transporte Escolar</title>
+  <link rel="stylesheet" href="../assets/css/style.css"/>
+  <script defer src="../assets/js/common.js"></script>
+  <script defer src="../assets/js/api.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <div class="brand">
+        <div class="logo">⚙️</div>
+        <div>
+          <h1>Configuración Sync</h1>
+          <small>Google Apps Script (Web App) + API Key</small>
+        </div>
+        <div class="spacer"></div>
+        <div class="toolbar">
+          <a class="btn" href="../index.html">🏠</a>
+          <a class="btn" href="login.html">🔐</a>
+          <button class="btn" onclick="TE.speakAll()">🗣️</button>
+          <button class="btn" onclick="TE.toggleTheme()">🌓</button>
+          <button class="btn" onclick="TE.bumpFont(0.05)">A+</button>
+          <button class="btn" onclick="TE.bumpFont(-0.05)">A−</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>🔗 URL del Web App</h2>
+        <p>Pega la URL de despliegue de Apps Script (termina en <code>/exec</code>).</p>
+        <input class="input" id="url" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec" style="width:100%"/>
+        <div style="height:10px"></div>
+        <h2>🔑 API Key</h2>
+        <p>Debe coincidir con <code>Script Properties → API_KEY</code>.</p>
+        <input class="input" id="key" placeholder="API_KEY" style="width:100%"/>
+        <div style="height:12px"></div>
+        <div class="row">
+          <button class="btn primary" id="save">💾 Guardar</button>
+          <button class="btn ok" id="ping">📡 Probar conexión</button>
+        </div>
+        <div style="height:10px"></div>
+        <div class="small">Esta configuración se guarda en el navegador (localStorage) de cada PC digitadora.</div>
+      </div>
+
+      <div class="card">
+        <h2>📌 Recomendación operacional</h2>
+        <p><b>Admin</b> configura Sync en su PC, carga la nómina una sola vez y define buses (capacidad/recorrido).</p>
+        <p><b>Digitadores</b> solo configuran Sync y luego trabajan con <b>RUT → asignar bus</b>.</p>
+        <div class="notice">
+          Si el sitio está en GitHub Pages bajo una carpeta, esta versión ya usa rutas relativas correctas para que no se “rompa” el CSS.
+        </div>
+        <div style="height:10px"></div>
+        <a class="btn" href="../README.html">📘 Guía completa</a>
+      </div>
+    </div>
+
+    <div class="footer">© NeoTech EduLab – Educación Inmersiva · LPSN · 2026</div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+  const cur = TE.sync.getSync();
+  url.value = cur.url;
+  key.value = cur.key;
+
+  save.onclick = ()=>{
+    TE.sync.setSync(url.value, key.value);
+    TE.toast('Configuración guardada.','ok');
+  };
+  ping.onclick = async ()=>{
+    try{
+      TE.sync.setSync(url.value, key.value);
+      const data = await TE.sync.callApi('ping', {});
+      TE.toast('Conexión OK: ' + (data?.now || ''), 'ok');
+    }catch(e){
+      TE.toast(e.message || 'No se pudo conectar.', 'err');
+    }
+  };
+});
+</script>
+</body>
+</html>

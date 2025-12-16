@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Login · Transporte Escolar</title>
+  <link rel="stylesheet" href="../assets/css/style.css"/>
+  <script defer src="../assets/js/common.js"></script>
+  <script defer src="../assets/js/auth.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container">
+      <div class="brand">
+        <div class="logo">🔐</div>
+        <div>
+          <h1>Ingreso de Digitadores</h1>
+          <small>Acceso restringido · LPSN Transporte Escolar 2026</small>
+        </div>
+        <div class="spacer"></div>
+        <div class="toolbar">
+          <a class="btn" href="../index.html">🏠</a>
+          <button class="btn" onclick="TE.speakAll()">🗣️</button>
+          <button class="btn" onclick="TE.toggleTheme()">🌓</button>
+          <button class="btn" onclick="TE.bumpFont(0.05)">A+</button>
+          <button class="btn" onclick="TE.bumpFont(-0.05)">A−</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>👤 Acceso</h2>
+        <p>Ingresa con tu correo institucional y clave.</p>
+        <div class="row">
+          <input class="input" id="email" placeholder="correo@liceosannicolas.cl" style="flex:1; min-width:260px"/>
+          <input class="input" id="pass" type="password" placeholder="Clave" style="min-width:180px"/>
+          <button class="btn primary" id="btnLogin">Entrar ➜</button>
+        </div>
+        <div style="height:10px"></div>
+        <div class="small">Si no puedes ingresar, verifica correo autorizado y clave.</div>
+      </div>
+
+      <div class="card">
+        <h2>🧭 Qué puedes hacer</h2>
+        <p><b>Digitador:</b> buscar alumno por RUT y asignar bus según cupos.</p>
+        <p><b>Administrador:</b> carga única de nómina y mantención de buses/recorridos.</p>
+        <div class="row">
+          <span class="badge ok">✅ Control cupos</span>
+          <span class="badge warn">⏳ En espera</span>
+          <span class="badge">📤 Export</span>
+        </div>
+        <div style="height:8px"></div>
+        <a class="btn" href="../app/settings.html">⚙️ Configurar Sync</a>
+      </div>
+    </div>
+
+    <div class="footer">© NeoTech EduLab – Educación Inmersiva · LPSN · 2026</div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+  const s = TE.auth.getSession();
+  if(s){
+    location.href = (s.role==='admin') ? 'admin.html' : 'dashboard.html';
+    return;
+  }
+  const btn = document.getElementById('btnLogin');
+  btn.addEventListener('click', ()=>{
+    try{
+      const email = document.getElementById('email').value;
+      const pass = document.getElementById('pass').value;
+      const session = TE.auth.login(email, pass);
+      TE.toast('Ingreso exitoso.','ok');
+      setTimeout(()=> location.href = (session.role==='admin') ? 'admin.html' : 'dashboard.html', 250);
+    }catch(e){
+      TE.toast(e.message || 'No se pudo ingresar.', 'err');
+    }
+  });
+});
+</script>
+</body>
+</html>
