@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     try{
       TE.sync.setSync(url.value, key.value);
       const data = await TE.sync.callApi('ping', {});
-      TE.toast('Conexión OK: ' + (data?.now || ''), 'ok');
+      TE.toast('Conexión OK: ' + (data?.ts || ''), 'ok');
     }catch(e){
       TE.toast(e.message || 'No se pudo conectar.', 'err');
     }

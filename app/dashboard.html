@@ -101,7 +101,7 @@ function renderStudent(s){
       ${badge}
     </div>
     <div class="small">
-      <b>RUT:</b> ${s.rut} · <b>Curso:</b> ${s.curso||'-'} · <b>Correo:</b> ${s.email||'-'}
+      <b>RUT:</b> ${s.rut} · <b>Curso:</b> ${s.curso||'-'} · <b>Correo:</b> ${(s.email||s.correo||'-')}
       <br/><b>Domicilio:</b> ${s.domicilio||'-'} · <b>Comuna:</b> ${s.comuna||'-'}
     </div>
     ${s.asignacion?.busId ? `<div style="margin-top:8px" class="small"><b>Actual:</b> Bus ${s.asignacion.busId} · ${s.asignacion.route||''}</div>`:''}
@@ -118,14 +118,14 @@ function fillBuses(){
   buses.forEach(b=>{
     const o = document.createElement('option');
     o.value = b.id;
-    const cap = b.capacity ? ` · cap ${b.capacity}` : '';
-    o.textContent = `🚌 ${b.id} · ${b.name||''}${cap}`;
+    const cap = b.capacidad ? ` · cap ${b.capacidad}` : '';
+    o.textContent = `🚌 ${b.id} · ${b.nombre||''}${cap}`;
     sel.appendChild(o);
   });
 }
 
 async function refreshBuses(){
-  const data = await TE.sync.callApi('listBusesWithLoad', {});
+  const data = await TE.sync.callApi('listBuses', {});
   buses = data.buses;
   fillBuses();
   TE.toast('Buses actualizados.','ok');
@@ -134,11 +134,11 @@ async function refreshBuses(){
 function showBusInfo(busId){
   const b = buses.find(x=>x.id===busId);
   if(!b){ busInfo.textContent='Selecciona un bus para ver cupos.'; return; }
-  const cap = b.capacity || 0;
-  const used = b.assigned || 0;
+  const cap = Number(b.capacidad || 0);
+  const used = Number(b.asignados || 0);
   const left = Math.max(0, cap - used);
   busInfo.innerHTML = `
-    <span class="badge">Recorrido</span> ${b.route||'-'}<br/>
+    <span class="badge">Recorrido</span> ${b.recorrido||'-'}<br/>
     <span class="badge ${left>0?'ok':'warn'}">Cupos</span> ${used}/${cap} · <b>Disponibles:</b> ${left}
   `;
 }
@@ -148,9 +148,9 @@ async function buscar(){
     const r = TE.sync.normRut(rut.value);
     if(!r) throw new Error('Ingresa un RUT.');
     rut.value = r;
-    const s = await TE.sync.callApi('getStudentByRut', { rut:r });
-    currentStudent = s;
-    renderStudent(s);
+    const s = await TE.sync.callApi('getStudent', { rut:r });
+    currentStudent = (s.student || s);
+    renderStudent(currentStudent);
     btnAsignar.disabled = false;
     logLine(r, 'Alumno encontrado');
   }catch(e){
@@ -182,9 +182,9 @@ async function asignar(){
     }
     await refreshBuses();
     // refresh student
-    const s = await TE.sync.callApi('getStudentByRut', { rut: currentStudent.rut });
-    currentStudent = s;
-    renderStudent(s);
+    const s = await TE.sync.callApi('getStudent', { rut: currentStudent.rut });
+    currentStudent = (s.student || s);
+    renderStudent(currentStudent);
   }catch(e){
     TE.toast(e.message,'err');
   }finally{

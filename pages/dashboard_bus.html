@@ -75,23 +75,51 @@ function fill(buses){
   buses.forEach(b=>{
     const o = document.createElement('option');
     o.value = b.id;
-    o.textContent = `🚌 ${b.id} · ${b.name||''}`;
+    o.textContent = `🚌 ${b.id} · ${b.nombre||''}`;
     sel.appendChild(o);
   });
 }
 
 function render(d){
   lastData = d;
+
+  // Normalizar filas (compatibilidad con headers en mayúsculas del Sheet)
+  const pick = (obj, keys) => {
+    for(const k of keys){
+      if(obj && obj[k] != null && obj[k] !== '') return obj[k];
+      // también soporta variantes de mayúsculas/minúsculas
+      const kk = String(k).toUpperCase();
+      const kl = String(k).toLowerCase();
+      if(obj && obj[kk] != null && obj[kk] !== '') return obj[kk];
+      if(obj && obj[kl] != null && obj[kl] !== '') return obj[kl];
+    }
+    return '';
+  };
+  d.asignados = (d.asignados || []).map(r=>({
+    rut: pick(r, ['rut','RUT']),
+    nombre: pick(r, ['nombre','NOMBRE']),
+    curso: pick(r, ['curso','CURSO']),
+    email: pick(r, ['email','correo','CORREO']),
+    raw: r
+  }));
+  d.enEspera = (d.enEspera || []).map(r=>({
+    rut: pick(r, ['rut','RUT']),
+    nombre: pick(r, ['nombre','NOMBRE']),
+    curso: pick(r, ['curso','CURSO']),
+    email: pick(r, ['email','correo','CORREO']),
+    motivo: pick(r, ['motivo','MOTIVO']),
+    raw: r
+  }));
   const b = d.bus;
-  const cap = b.capacity||0, used = d.asignados.length;
+  const cap = Number(b.capacidad||0), used = d.asignados.length;
   const left = Math.max(0, cap-used);
   info.innerHTML = `
     <div class="row">
-      <div><b>Bus:</b> ${b.id} · ${b.name||''}</div>
+      <div><b>Bus:</b> ${b.id} · ${b.nombre||''}</div>
       <div class="spacer"></div>
       <span class="badge ${left>0?'ok':'warn'}">Cupos ${used}/${cap} · disp ${left}</span>
     </div>
-    <div class="small" style="margin-top:6px"><b>Recorrido:</b> ${b.route||'-'}</div>
+    <div class="small" style="margin-top:6px"><b>Recorrido:</b> ${b.recorrido||'-'}</div>
   `;
   const ta = document.querySelector('#tblA tbody');
   const tw = document.querySelector('#tblW tbody');
@@ -101,7 +129,7 @@ function render(d){
     tr.innerHTML = `<td>${r.rut}</td><td>${r.nombre||''}</td><td>${r.curso||''}</td><td>${r.email||''}</td>`;
     ta.appendChild(tr);
   });
-  d.espera.forEach(r=>{
+  d.enEspera.forEach(r=>{
     const tr=document.createElement('tr');
     tr.innerHTML = `<td>${r.rut}</td><td>${r.nombre||''}</td><td>${r.curso||''}</td><td>${r.motivo||'SIN_CUPO'}</td>`;
     tw.appendChild(tr);
@@ -136,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
   btnCsv.onclick = ()=>{
     if(!lastData){ TE.toast('Primero carga un bus.','warn'); return; }
-    const rows = lastData.asignados.map(r=>({rut:r.rut, nombre:r.nombre, curso:r.curso, email:r.email, bus:lastData.bus.id, recorrido:lastData.bus.route||''}));
+    const rows = lastData.asignados.map(r=>({rut:r.rut, nombre:r.nombre, curso:r.curso, email:r.email, bus:lastData.bus.id, recorrido:lastData.bus.recorrido||''}));
     const csv = toCsv(rows, ['rut','nombre','curso','email','bus','recorrido']);
     const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
     const a = document.createElement('a');

@@ -16,7 +16,29 @@
   async function callApi(action, payload){
     const {url, key} = getSync();
     if(!url) throw new Error('Falta configurar URL Sync (Apps Script).');
-    const body = JSON.stringify({ key, action, payload: payload||{} });
+    const session = (TE.auth && TE.auth.getSession) ? TE.auth.getSession() : null;
+    const email = (payload && payload.email) ? String(payload.email) : (session && session.email ? session.email : '');
+    // Compatibilidad de acciones (versiones anteriores del frontend)
+    const map = {
+      getStudentByRut: 'getStudent',
+      listBusesWithLoad: 'listBuses'
+    };
+    const act = map[action] || action;
+
+    // Si viene payload anidado (legacy), lo aplanamos
+    let flat = {};
+    if(payload && typeof payload === 'object'){
+      if(payload.payload && typeof payload.payload === 'object'){
+        flat = Object.assign({}, payload.payload, payload);
+        delete flat.payload;
+      }else{
+        flat = Object.assign({}, payload);
+      }
+    }
+
+    const bodyObj = Object.assign({ action: act, apiKey: (key||'').trim(), email: (email||'').trim() }, flat);
+    const body = JSON.stringify(bodyObj);
+
     const res = await fetch(url, {
       method:'POST',
       headers:{ 'Content-Type':'text/plain;charset=utf-8' },
@@ -24,7 +46,7 @@
     });
     const txt = await res.text();
     let data;
-    try{ data = JSON.parse(txt); }catch(e){ throw new Error('Respuesta no válida del servidor Sync.'); }
+    try{ data = JSON.parse(txt); }catch(e){ throw new Error('Respuesta inválida del Sync.'); }
     if(!data.ok) throw new Error(data.error || 'Error Sync.');
     return data.data;
   }

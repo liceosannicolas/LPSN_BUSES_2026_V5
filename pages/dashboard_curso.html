@@ -72,7 +72,29 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const c = (curso.value||'').trim();
       if(!c) throw new Error('Ingresa un curso.');
       const d = await TE.sync.callApi('getCursoDashboard', { curso:c });
-      lastRows = d.rows;
+      
+      const pick = (obj, keys) => {
+        for(const k of keys){
+          if(obj && obj[k]!=null && obj[k] !== '') return obj[k];
+          const kk = String(k).toUpperCase();
+          const kl = String(k).toLowerCase();
+          if(obj && obj[kk]!=null && obj[kk] !== '') return obj[kk];
+          if(obj && obj[kl]!=null && obj[kl] !== '') return obj[kl];
+        }
+        return '';
+      };
+      lastRows = (d.rows || []).map(r=>({
+        rut: pick(r, ['rut','RUT']),
+        nombre: pick(r, ['nombre','Nombre','NOMBRE']),
+        email: pick(r, ['email','correo','Email','CORREO']),
+        curso: pick(r, ['curso','Curso','CURSO']),
+        busId: pick(r, ['busId','busid','BusID','BUSID','BUS_ID']),
+        route: pick(r, ['route','recorrido','Recorrido','RECORRIDO']),
+        status: pick(r, ['status','estado','Estado','ESTADO']),
+        digitador: pick(r, ['digitador','Digitador','DIGITADOR']),
+        raw: r
+      }));
+
       info.innerHTML = `<b>Curso:</b> ${c} · <b>Registros:</b> ${d.rows.length}`;
       const tb = document.querySelector('#tbl tbody');
       tb.innerHTML='';
